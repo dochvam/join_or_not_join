@@ -23,7 +23,9 @@ true_values <- dataset_list[[1]]$true_params %>%
 
 ggplot(results, aes(param, mean)) + 
   geom_pointrange(aes(ymin = `2.5%`, ymax = `97.5%`), position = position_jitter(width = 0.2)) +
-  geom_point(data = true_values, col = "red")
+  geom_point(data = true_values, col = "red") + 
+  coord_flip() +
+  theme_minimal()
 
 
 

@@ -76,7 +76,7 @@ simulate_joint_data <- function(sim_scenario,
            covC = rnorm(ncamera)) %>% 
     left_join(process_df, by = c("x", "y")) %>% 
     mutate(psi = nimble::icloglog(log_intensity),
-           p = nimble::expit(camera_detInt + covC * camera_detb1)) %>% 
+           p = nimble::icloglog(camera_detInt + covC * camera_detb1)) %>% 
     mutate(z = rbinom(ncamera, 1, psi))
   
   visit_cols <- paste0("V", 1:nreps_percam)
