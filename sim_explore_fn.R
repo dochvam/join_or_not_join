@@ -3,8 +3,6 @@ library(unmarked)
 library(nimbleEcology)
 
 
-
-
 #### Scenario codes:
 #' 1 = Matches the model to estimate
 #' 2 = PO effort is observed with random error
@@ -187,6 +185,147 @@ simulate_joint_data <- function(sim_scenario,
   PO_cell_start <- PO_cell_start[-holdout_inds_PO]
   PO_cell_end   <- PO_cell_end[-holdout_inds_PO]
   
+  
+  return(list(
+    camera_df = camera_df,
+    cell_dat = cell_dat,
+    po_df = po_df,
+    PO_cell_start = PO_cell_start,
+    PO_cell_end = PO_cell_end,
+    true_params = true_params,
+    visit_cols = visit_cols,
+    datlist_holdout = datlist_holdout,
+    dataset_ID = dataset_ID
+  ))
+}
+
+
+
+
+simulate_joint_data_v2 <- function(sim_scenario,
+                                dataset_ID,
+                                grid_dim = 100,
+                                ncamera = 50,
+                                ncamera_holdout = 25,
+                                nreps_percam = 3,
+                                PO_agg_factor = 4,
+                                PO_avg_effort = 50,
+                                PO_zi = 0.3,
+                                intensity_intercept = -0.3,
+                                intensity_b1 = 1,
+                                intensity_b2 = 1,
+                                intensity_b3 = 0,
+                                camera_detInt = 0.5,
+                                camera_detb1 = 0.3,
+                                cam_pct_xcover = 1,
+                                PO_bias = 0,
+                                PO_theta0 = -6,
+                                PO_theta1 = 1,
+                                PO_overdisp = 0.5,
+                                PO_error_sd = 0.5) {
+
+  true_params <- data.frame(
+    param = c("intensity_int",
+              "intensity_beta",
+              "cam_p_int",
+              "det_beta[1]",
+              "det_beta[2]",
+              "theta0",
+              "theta1",
+              "overdisp",
+              "log_overdisp",
+              "PO_error_sd"),
+    value = c(intensity_intercept,
+              intensity_b1,
+              camera_detInt,
+              camera_detb1,
+              0,
+              PO_theta0,
+              PO_theta1,
+              PO_overdisp,
+              log(PO_overdisp),
+              PO_error_sd)
+  )
+  
+  PO_b1 <- intensity_b1 + PO_bias
+  
+  # True intensity process of interest:
+  process_df <- expand.grid(x = 1:grid_dim, y = 1:grid_dim) %>% 
+    mutate(PO_agg_x = floor((x - 1) / PO_agg_factor) + 1,
+           PO_agg_y = floor((y - 1) / PO_agg_factor) + 1) %>% 
+    mutate(cov1 = runif(grid_dim^2, 0, 1),
+           covC = rnorm(grid_dim^2, 0, 1)) %>% 
+    mutate(
+      log_intensity = intensity_intercept + 
+        intensity_b1 * cov1
+    )
+  
+  possible_cells <- process_df %>% 
+    filter(cov1 < cam_pct_xcover)
+  
+  # Simulate camera trap locations, occupancies, and detection histories
+  camera_df <- possible_cells %>% 
+    sample_n(ncamera, replace = TRUE) %>% 
+    mutate(camera_id = row_number()) %>% 
+    mutate(psi = nimble::icloglog(log_intensity),
+           p = nimble::icloglog(camera_detInt + covC * camera_detb1)) %>% 
+    mutate(z = rbinom(ncamera, 1, psi))
+  
+  visit_cols <- paste0("V", 1:nreps_percam)
+  for (i in 1:nreps_percam) {
+    camera_df[[visit_cols[i]]] <- 
+      rbinom(ncamera, 1, prob = camera_df$p * camera_df$z)
+  }
+  
+  
+  
+  #### Simulate PO-like count data, with effort
+  process_df$log_intensity_2 <- intensity_intercept + 
+    PO_b1 * process_df$cov1
+  
+  po_df <- process_df %>% 
+    group_by(PO_agg_x, PO_agg_y) %>% 
+    summarize(log_sum_exp_llam = log(sum(exp(log_intensity_2))),
+              .groups = "drop") %>% 
+    mutate(mu = exp(PO_theta0 + PO_theta1 * log_sum_exp_llam +
+                        PO_error_sd * rnorm(n(), 0, 1)))
+    
+    
+  po_df <- po_df %>% 
+    mutate(effort = rpois(nrow(po_df), PO_avg_effort) * 
+           rbinom(nrow(po_df), 1, 1 - PO_zi)) %>% 
+    mutate(y = rnbinom(nrow(po_df), mu = mu * effort, size = 1 / PO_overdisp))
+  
+  
+  #### Put together cell-level info ####
+  
+  cell_dat <- process_df %>% 
+    arrange(PO_agg_x, PO_agg_y) %>% 
+    group_by(PO_agg_x, PO_agg_y) %>% 
+    mutate(agg_cell_ID = cur_group_id()) %>% 
+    ungroup()
+  PO_cell_start <- PO_cell_end <- numeric(length(unique(cell_dat$agg_cell_ID)))
+  
+  for (i in 1:length(PO_cell_start)) {
+    PO_cell_start[i] <- min(which(cell_dat$agg_cell_ID == i))
+    PO_cell_end[i]   <- max(which(cell_dat$agg_cell_ID == i))
+  }
+  
+  po_df <- left_join(po_df, distinct(cell_dat, PO_agg_x, PO_agg_y, agg_cell_ID),
+                     by = c("PO_agg_x", "PO_agg_y")) %>% 
+    arrange(agg_cell_ID)
+  
+  
+  
+  # Separate the holdout data
+  datlist_holdout <- list()
+  camera_df_holdout <- process_df %>% 
+    sample_n(size = ncamera_holdout) %>% 
+    mutate(psi = nimble::icloglog(log_intensity),
+           p = nimble::icloglog(camera_detInt + covC * camera_detb1)) %>% 
+    mutate(z = rbinom(ncamera_holdout, 1, psi))
+  
+  datlist_holdout$camera_df <- camera_df_holdout
   
   return(list(
     camera_df = camera_df,
