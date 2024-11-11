@@ -228,8 +228,7 @@ simulate_joint_data_v2 <- function(sim_scenario,
     param = c("intensity_int",
               "intensity_beta",
               "cam_p_int",
-              "det_beta[1]",
-              "det_beta[2]",
+              "det_beta",
               "theta0",
               "theta1",
               "overdisp",
@@ -239,7 +238,6 @@ simulate_joint_data_v2 <- function(sim_scenario,
               intensity_b1,
               camera_detInt,
               camera_detb1,
-              0,
               PO_theta0,
               PO_theta1,
               PO_overdisp,
@@ -325,6 +323,12 @@ simulate_joint_data_v2 <- function(sim_scenario,
            p = nimble::icloglog(camera_detInt + covC * camera_detb1)) %>% 
     mutate(z = rbinom(ncamera_holdout, 1, psi))
   
+  visit_cols <- paste0("V", 1:nreps_percam)
+  for (i in 1:nreps_percam) {
+    camera_df_holdout[[visit_cols[i]]] <- 
+      rbinom(ncamera_holdout, 1, prob = camera_df_holdout$p * camera_df_holdout$z)
+  }
+  
   datlist_holdout$camera_df <- camera_df_holdout
   
   return(list(
@@ -336,7 +340,8 @@ simulate_joint_data_v2 <- function(sim_scenario,
     true_params = true_params,
     visit_cols = visit_cols,
     datlist_holdout = datlist_holdout,
-    dataset_ID = dataset_ID
+    dataset_ID = dataset_ID,
+    sim_scenario = sim_scenario
   ))
 }
 
@@ -554,9 +559,11 @@ joint_inits <- function(modtype, ncovInt, ncovP, MLE = FALSE) {
 
 
 fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0, 
-                                sim_scenario, progress = TRUE) {
+                                sim_scenario = NULL, progress = TRUE) {
   
   stopifnot(modtype %in% c("joint", "camera_only", "PO_only"))
+  
+  if (is.null(sim_scenario)) sim_scenario <- datlist[[1]]$sim_scenario
   
   if (nsim == 1 && length(datlist) > 1) {
     datlist <- list(datlist)
@@ -571,8 +578,8 @@ fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0,
   modcode_MLE <- nimbleCode({
     if (modtype == "joint" || modtype == "camera_only") {
       for (i in 1:ncam) {
-        cloglog(psi[i]) <- intensity_int + inprod(intensity_beta[1:ncovInt], cam_dat_int[i, 1:ncovInt])
-        cloglog(p[i]) <- cam_p_int + inprod(det_beta[1:ncovP], cam_dat_p[i, 1:ncovP])
+        cloglog(psi[i]) <- intensity_int + intensity_beta * cam_dat_int[i]
+        cloglog(p[i]) <- cam_p_int + det_beta * cam_dat_p[i]
         
         cam_y[i, 1:nrep] ~ dOcc_s(probOcc = psi[i], probDetect = p[i], len = nrep)
       }
@@ -582,7 +589,7 @@ fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0,
       for (i in 1:nPOcell) {
         for (j in 1:repsPerPOCell) {
           predicted_log_intensity[i, j] <- intensity_int + 
-            inprod(intensity_beta[1:ncovInt], cell_dat_int[(i-1)*repsPerPOCell + j, 1:ncovInt])
+            intensity_beta * cell_dat_int[(i-1)*repsPerPOCell + j]
         }
         
         log(mu[i]) <- theta0 + theta1 * 
@@ -596,8 +603,8 @@ fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0,
     }
   })
   
-  p_covs <- c("covC", "cov1")
-  int_covs <- c("cov1", "cov2", "cov3")
+  p_covs <- c("covC")
+  int_covs <- c("cov1")
   
   # Make sure the order of cells matches PO data order
   order_vec <- datlist[[1]]$po_df$agg_cell_ID
@@ -614,23 +621,19 @@ fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0,
       nPOcell = length(datlist[[1]]$PO_cell_start),
       repsPerPOCell = sum(datlist[[1]]$cell_dat$PO_agg_x == 1 &
                           datlist[[1]]$cell_dat$PO_agg_y == 1),
-      ncam = nrow(datlist[[1]]$camera_df),
-      # cell_start = datlist[[1]]$PO_cell_start,
-      # cell_end = datlist[[1]]$PO_cell_end,
-      ncovP = 2,
-      ncovInt = 3
+      ncam = nrow(datlist[[1]]$camera_df)
     ),
     data = list(
-      cell_dat_int =  as.matrix(this_cell_dat[, int_covs]),
+      cell_dat_int =  as.numeric(unlist(this_cell_dat[, int_covs])),
       
-      cam_dat_int  = as.matrix(datlist[[1]]$camera_df[, int_covs]),
-      cam_dat_p = as.matrix(datlist[[1]]$camera_df[, p_covs]),
+      cam_dat_int  = as.numeric(unlist(datlist[[1]]$camera_df[, "cov1"])),
+      cam_dat_p = as.numeric(unlist(datlist[[1]]$camera_df[, "covC"])),
       cam_y = as.matrix(datlist[[1]]$camera_df[, datlist[[1]]$visit_cols]),
 
       PO_y  = as.numeric(datlist[[1]]$po_df$y),
       effort = as.numeric(datlist[[1]]$po_df$effort)
     ),
-    inits = joint_inits(modtype, 3, 2, MLE = TRUE)
+    inits = joint_inits(modtype, 1, 1, MLE = TRUE)
   )
   cmod <- compileNimble(mod)
   
@@ -666,15 +669,15 @@ fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0,
       order_vec <- datlist[[i]]$po_df$agg_cell_ID
       this_cell_dat <- datlist[[i]]$cell_dat[datlist[[i]]$cell_dat$agg_cell_ID %in% order_vec, ]
       stopifnot(all(unique(this_cell_dat$agg_cell_ID) == order_vec))
-      cmod$setData("cell_dat_int" = as.matrix(this_cell_dat[, int_covs]))
+      cmod$setData("cell_dat_int" = as.numeric(unlist(this_cell_dat[, int_covs])))
       
       cmod$setData("effort" = datlist[[i]]$po_df$effort)
       cmod$setData("PO_y" = datlist[[i]]$po_df$y)
     }
     if (modtype %in% c("joint", "camera_only")) {
       cmod$setData("cam_y" = datlist[[i]]$camera_df[, datlist[[i]]$visit_cols])
-      cmod$setData("cam_dat_int" = as.matrix(datlist[[i]]$camera_df[, int_covs]))
-      cmod$setData("cam_dat_p" = as.matrix(datlist[[i]]$camera_df[, p_covs]))
+      cmod$setData("cam_dat_int" = as.numeric(unlist(datlist[[i]]$camera_df[, int_covs])))
+      cmod$setData("cam_dat_p" = as.numeric(unlist(datlist[[i]]$camera_df[, p_covs])))
     }
 
   # Gather true values
@@ -689,7 +692,7 @@ fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0,
              scenario = sim_scenario) %>% 
       left_join(true_values_raw, by = "param") %>% 
       mutate(covered = est - 1.96*se < true_value & est + 1.96*se > true_value)
-    
+    # browser()
     rmse_list[[i]] <- data.frame(
       dataset_ID = datlist[[i]]$dataset_ID,
       modtype = modtype,
@@ -797,7 +800,7 @@ calc_RMSE_prediction <- function(estimate_df, cell_dat, int_covs) {
   nCell <- nrow(cell_dat)
   
   predicted_log_intensity <- as.numeric(intensity_int + 
-    as.matrix(cell_dat[, int_covs]) %*% intensity_beta)
+    as.matrix(cell_dat[, int_covs]) * intensity_beta)
   
   cell_sqerr <- (predicted_log_intensity - cell_dat$log_intensity)^2
 
@@ -846,12 +849,12 @@ calc_CV_error <- function(estimate_df, holdout_dat, cell_dat,
   
   if (modtype %in% c("joint", "camera_only")) {
     predicted_occu <- 
-      (intensity_int + as.matrix(holdout_dat$camera_df[, int_covs]) %*% intensity_beta) %>% 
+      (intensity_int + as.matrix(holdout_dat$camera_df[, int_covs]) * intensity_beta) %>% 
       as.numeric() %>% 
       icloglog()
     
     predicted_det <- 
-      (cam_p_int + as.matrix(holdout_dat$camera_df[, p_covs]) %*% det_beta) %>% 
+      (cam_p_int + as.matrix(holdout_dat$camera_df[, p_covs]) * det_beta) %>% 
       as.numeric() %>% 
       icloglog()
     
@@ -864,33 +867,33 @@ calc_CV_error <- function(estimate_df, holdout_dat, cell_dat,
     CV_df[[1]] <- data.frame(type = "camera", score = "brier", value = mean(brier_score))
   }
   
-  if (modtype %in% c("joint", "PO_only")) {
-    PO_dat <- holdout_dat$po_df
-    mu <- numeric(nrow(PO_dat))
-    
-    for (i in 1:nrow(PO_dat)) {
-      predicted_log_intensity <- (intensity_int + 
-        as.matrix(cell_dat[cell_dat$agg_cell_ID == PO_dat$agg_cell_ID[i], int_covs]) %*% intensity_beta) %>% 
-        as.numeric()
-      
-      mu[i] <- exp(theta0 + theta1 * log(sum(exp(predicted_log_intensity))))
-      
-      
-    }
-    
-    ll <- sum(dnbinom(x = PO_dat$y, size = 1 / exp(log_overdisp),
-            prob = 1 / (1 + exp(log_overdisp) * PO_dat$effort * mu), log = TRUE))
-    ll_saturated <- sum(dnbinom(x = PO_dat$y, size = 1 / exp(log_overdisp),
-            prob = 1 / (1 + exp(log_overdisp) * PO_dat$y), log = TRUE))
-    
-    deviance <- 2 * (ll_saturated - ll)
-    
-    CV_df[[2]] <- data.frame(
-      type = "PO",
-      score = c("nll", "deviance"),
-      value = c(-ll, deviance)
-    )
-  }
+  # if (modtype %in% c("joint", "PO_only")) {
+  #   PO_dat <- holdout_dat$po_df
+  #   mu <- numeric(nrow(PO_dat))
+  #   
+  #   for (i in 1:nrow(PO_dat)) {
+  #     predicted_log_intensity <- (intensity_int + 
+  #       as.matrix(cell_dat[cell_dat$agg_cell_ID == PO_dat$agg_cell_ID[i], int_covs]) * intensity_beta) %>% 
+  #       as.numeric()
+  #     
+  #     mu[i] <- exp(theta0 + theta1 * log(sum(exp(predicted_log_intensity))))
+  #     
+  #     
+  #   }
+  #   
+  #   ll <- sum(dnbinom(x = PO_dat$y, size = 1 / exp(log_overdisp),
+  #           prob = 1 / (1 + exp(log_overdisp) * PO_dat$effort * mu), log = TRUE))
+  #   ll_saturated <- sum(dnbinom(x = PO_dat$y, size = 1 / exp(log_overdisp),
+  #           prob = 1 / (1 + exp(log_overdisp) * PO_dat$y), log = TRUE))
+  #   
+  #   deviance <- 2 * (ll_saturated - ll)
+  #   
+  #   CV_df[[2]] <- data.frame(
+  #     type = "PO",
+  #     score = c("nll", "deviance"),
+  #     value = c(-ll, deviance)
+  #   )
+  # }
   
   return(bind_rows(CV_df))
 }
