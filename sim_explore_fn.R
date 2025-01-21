@@ -213,8 +213,6 @@ simulate_joint_data_v2 <- function(sim_scenario,
                                 PO_zi = 0.3,
                                 intensity_intercept = -0.3,
                                 intensity_b1 = 1,
-                                intensity_b2 = 1,
-                                intensity_b3 = 0,
                                 camera_detInt = 0.5,
                                 camera_detb1 = 0.3,
                                 cam_pct_xcover = 1,
@@ -251,7 +249,7 @@ simulate_joint_data_v2 <- function(sim_scenario,
   process_df <- expand.grid(x = 1:grid_dim, y = 1:grid_dim) %>% 
     mutate(PO_agg_x = floor((x - 1) / PO_agg_factor) + 1,
            PO_agg_y = floor((y - 1) / PO_agg_factor) + 1) %>% 
-    mutate(cov1 = runif(grid_dim^2, 0, 1),
+    mutate(cov1 = runif(grid_dim^2, -1, 1),
            covC = rnorm(grid_dim^2, 0, 1)) %>% 
     mutate(
       log_intensity = intensity_intercept + 
@@ -259,7 +257,7 @@ simulate_joint_data_v2 <- function(sim_scenario,
     )
   
   possible_cells <- process_df %>% 
-    filter(cov1 < cam_pct_xcover)
+    filter(cov1 < -1 + 2*cam_pct_xcover)
   
   # Simulate camera trap locations, occupancies, and detection histories
   camera_df <- possible_cells %>% 
@@ -558,12 +556,17 @@ joint_inits <- function(modtype, ncovInt, ncovP, MLE = FALSE) {
 # }
 
 
-fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0, 
+fit_nimblemodel_MLE <- function(datlist, nsim = NULL, modtype, 
+                                holdout_frac = 0, 
                                 sim_scenario = NULL, progress = TRUE) {
   
   stopifnot(modtype %in% c("joint", "camera_only", "PO_only"))
   
-  if (is.null(sim_scenario)) sim_scenario <- datlist[[1]]$sim_scenario
+  # if (is.null(sim_scenario)) sim_scenario <- datlist[[1]]$sim_scenario
+  
+  if (is.null(nsim)) {
+    nsim <- length(datlist)
+  }
   
   if (nsim == 1 && length(datlist) > 1) {
     datlist <- list(datlist)
@@ -689,14 +692,14 @@ fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0,
     summary_list[[i]] <- this_fit %>% 
       mutate(dataset_ID = datlist[[i]]$dataset_ID,
              modtype = modtype,
-             scenario = sim_scenario) %>% 
+             scenario = datlist[[i]]$sim_scenario) %>% 
       left_join(true_values_raw, by = "param") %>% 
       mutate(covered = est - 1.96*se < true_value & est + 1.96*se > true_value)
     # browser()
     rmse_list[[i]] <- data.frame(
       dataset_ID = datlist[[i]]$dataset_ID,
       modtype = modtype,
-      scenario = sim_scenario,
+      scenario = datlist[[i]]$sim_scenario,
       goal = c("prediction", "inference_betas", "inference_all"),
       RMSE = c(
         calc_RMSE_prediction(this_fit, datlist[[i]]$cell_dat, int_covs),
@@ -714,7 +717,7 @@ fit_nimblemodel_MLE <- function(datlist, nsim, modtype, holdout_frac = 0,
                                   modtype = modtype) %>% 
       mutate(dataset_ID = datlist[[i]]$dataset_ID,
              modtype = modtype,
-             scenario = sim_scenario)
+             scenario = datlist[[i]]$sim_scenario)
   }
   
   return(list(
