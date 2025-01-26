@@ -3,8 +3,8 @@ library(tidyverse)
 
 sim1_params <- c("n1", "n2", "J", "xi", "beta0", "beta1", "alpha0_1", 
                  "alpha1_1", "alpha0_2", "alpha1_2", "zeta", "sigma")
-sim1_defaults <- c(n1 = 30,
-                   n2 = 30,
+sim1_defaults <- c(n1 = 50,
+                   n2 = 50,
                    J = 3,
                    xi = 1,
                    beta0 = 0.5,
@@ -28,8 +28,9 @@ simulate_data_sim1 <- function(n1,
                                alpha1_2,
                                zeta, 
                                sigma) {
+  stopifnot(xi <= 1 && xi >= 0)
   
-  x_1 <- runif(n1, -1, -1 + 2*xi)
+  x_1 <- runif(n1, -xi, xi)
   x_2 <- runif(n2, -1, 1)
   
   w_1 <- matrix(runif(n1 * J, -1, 1), nrow = n1)
@@ -82,7 +83,7 @@ run_one_sim1 <- function(iter,
                          scenario = 0,
                          n1 = 30, 
                          n2 = 30, 
-                         J = 3, 
+                         J = 5, 
                          xi = 1,
                          beta0 = 0.5,
                          beta1 = 1, 
@@ -96,7 +97,7 @@ run_one_sim1 <- function(iter,
   
   dat <- simulate_data_sim1(n1, n2, J, xi, beta0, beta1, alpha0_1, alpha1_1, 
                             alpha0_2, alpha1_2, zeta, sigma)
-  dat_OOS <- simulate_data_sim1(n1, n2, J, xi, beta0, beta1, alpha0_1, alpha1_1, 
+  dat_OOS <- simulate_data_sim1(n1, n2, J, xi = 1, beta0, beta1, alpha0_1, alpha1_1, 
                                 alpha0_2, alpha1_2, zeta, sigma)
   
   dat_one <- list(
@@ -109,7 +110,7 @@ run_one_sim1 <- function(iter,
                                      n.burn = 2500, n.samples = 5000,
                                      n.chains = 2,
                                      verbose = F)
-  browser()
+  # browser()
   
   fit_one <- spOccupancy::PGOcc(~x, ~w_1, data = dat_one, 
                                   n.burn = 2500, n.samples = 5000,
@@ -119,6 +120,7 @@ run_one_sim1 <- function(iter,
     data.frame(
       param = c("beta0", "beta1", "alpha0_1", "alpha1_1"),
       mean = colMeans(cbind(fit_joint$beta.samples, fit_joint$alpha.samples[, 1:2])),
+      sd   = apply(cbind(fit_joint$beta.samples, fit_joint$alpha.samples[, 1:2]), 2, sd),
       Q025 = apply(cbind(fit_joint$beta.samples, fit_joint$alpha.samples[, 1:2]), 2, quantile, probs = 0.025),
       Q975 = apply(cbind(fit_joint$beta.samples, fit_joint$alpha.samples[, 1:2]), 2, quantile, probs = 0.975)
     ) %>% 
@@ -127,6 +129,7 @@ run_one_sim1 <- function(iter,
     data.frame(
       param = c("beta0", "beta1", "alpha0_1", "alpha1_1"),
       mean = colMeans(cbind(fit_one$beta.samples, fit_one$alpha.samples)),
+      sd   = apply(cbind(fit_one$beta.samples, fit_one$alpha.samples), 2, sd),
       Q025 = apply(cbind(fit_one$beta.samples, fit_one$alpha.samples), 2, quantile, probs = 0.025),
       Q975 = apply(cbind(fit_one$beta.samples, fit_one$alpha.samples), 2, quantile, probs = 0.975)
     ) %>% 

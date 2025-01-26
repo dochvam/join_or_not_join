@@ -7,10 +7,10 @@ sim2_params <- c("S", "nPA", "J", "xi", "eta", "q",
                  "beta0", "beta1", "alpha0", "alpha1",
                  "theta0", "theta1", "phi", "zeta", "sigma")
 sim2_defaults <- c(S = 100,
-                   nPA = 30,
+                   nPA = 50,
                    J = 3,
                    xi = 1,
-                   eta = 30,
+                   eta = 100,
                    q = 0.7,
                    beta0 = 0.5,
                    beta1 = 1,
@@ -44,7 +44,7 @@ simulate_data_sim2 <- function(S,
   lambda <- exp(beta0 + beta1 * x)
   
   # PA data
-  cells_to_sample <- 1:(S * xi)
+  cells_to_sample <- which(abs(x) <= xi)
   grid_cells <- sample(cells_to_sample, size = nPA, replace = TRUE)
   w <- matrix(runif(nPA * J, -1, 1), nrow = nPA)
   
@@ -175,6 +175,8 @@ simulate_data_sim2 <- function(S,
 run_many_sim2 <- function(specs_df_onerow, nsim) {
   set.seed(specs_df_onerow$scenario + 14908)
   
+  stopifnot(all(colnames(specs_df_onerow) %in% c(names(sim2_defaults), "scenario")))
+  
   sim2_values <- sim2_defaults
   for (i in 1:ncol(specs_df_onerow)) {
     if (colnames(specs_df_onerow)[i] %in% sim2_params) {
@@ -270,7 +272,7 @@ run_many_sim2 <- function(specs_df_onerow, nsim) {
     dat_OOS <- simulate_data_sim2(S = sim2_values["S"],
                               nPA = sim2_values["nPA"],
                               J = sim2_values["J"],
-                              xi = sim2_values["xi"],
+                              xi = 1,
                               eta = sim2_values["eta"],
                               q = sim2_values["q"],
                               beta0 = sim2_values["beta0"],
