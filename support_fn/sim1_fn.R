@@ -4,7 +4,7 @@ library(tidyverse)
 sim1_params <- c("n1", "n2", "J", "xi", "beta0", "beta1", "alpha0_1", 
                  "alpha1_1", "alpha0_2", "alpha1_2", "zeta", "sigma")
 sim1_defaults <- c(n1 = 50,
-                   n2 = 50,
+                   n2 = 120,
                    J = 3,
                    xi = 1,
                    beta0 = 0.5,

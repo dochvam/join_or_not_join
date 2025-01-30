@@ -287,18 +287,23 @@ run_many_sim2 <- function(specs_df_onerow, nsim) {
     
     # Update the data in the model
     for (i in 1:length(dat$data)) {
+      
       joint_complist$joint_mod[[names(dat$data)[i]]] <- dat$data[[i]]
+      joint_complist$joint_mod$setData(names(dat$data)[i])
+      
       if (names(dat$data)[i] %in% c("y_PA", "x_PA", "w")) {
         single_complist$single_mod[[names(dat$data)[i]]] <- dat$data[[i]]
+        single_complist$single_mod$setData(names(dat$data)[i])
       }
+      
     }
     
     joint_time <- system.time(
       samples_joint <- runMCMC(joint_complist$joint_mcmc, niter = 20000, nburnin = 5000,
-                             nchains = 2, thin = 1, progressBar = F))
+                             nchains = 2, thin = 1, progressBar = F, inits = dat$inits))
     single_time <- system.time(
       samples_single <- runMCMC(single_complist$single_mcmc, niter = 20000, nburnin = 5000,
-                             nchains = 2, thin = 1, progressBar = F))
+                             nchains = 2, thin = 1, progressBar = F, inits = dat$inits))
     
     summary_joint <- MCMCsummary(samples_joint) %>% mutate(type = "joint")
     summary_joint$param <- rownames(summary_joint)
