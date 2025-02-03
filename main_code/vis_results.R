@@ -386,6 +386,142 @@ plot_1.3D <- bind_rows(
 
 ggsave("plots/Fig1-3.jpg", plot_1.3D, width = 8, height = 8, dpi = 600)
 
+#### Visualizing 1.4 ####
+
+this_res <- readRDS("sim_output/sim1_4.RDS")
+estimation_results <- this_res$estimation_results
+cv_results <- this_res$cv_results
+runtime_results <- this_res$runtime_results
+specs_df <- this_res$specs_df
+
+
+# Improvement in MSE
+plot_1.4A <- bind_rows(estimation_results) %>% 
+  filter(param %in% c("beta0", "beta1")) %>% 
+  mutate(MSE = sd^2 + (mean - truth)^2) %>% 
+  select(type, scenario, iter, param, MSE) %>% 
+  pivot_wider(names_from = type, values_from = MSE) %>% 
+  mutate(improvement = one - joint) %>% 
+  group_by(scenario, param) %>% 
+  summarize(mean = mean(improvement), ub = quantile(improvement, 0.975),
+            lb = quantile(improvement, 0.025)) %>% 
+  left_join(specs_df, by = "scenario") %>% 
+  mutate(zeta = factor(zeta, levels = unique(specs_df$zeta))) %>% 
+  ggplot(aes(alpha0_1, mean, ymin = lb, ymax = ub, group = zeta, col = zeta)) +
+  geom_pointrange(position = position_dodge(width = 0.3)) +
+  geom_line(position = position_dodge(width = 0.3)) +
+  theme_bw() +
+  facet_grid(paste0("Parameter: ", param)~paste0("PA-1 coverage: ", xi),
+             scales = "free_y") +
+  geom_hline(yintercept = 0) +
+  xlab("Degree of noise in secondary dataset") +
+  scale_color_discrete("Magnitude of bias in\nprimary dataset") +
+  ylab("Improvement in MSE of estimate")
+
+# Improvement in point error
+plot_1.4B <- bind_rows(estimation_results) %>% 
+  filter(param %in% c("beta0", "beta1")) %>% 
+  mutate(error = abs(mean - truth)) %>% 
+  select(type, scenario, iter, param, error) %>% 
+  pivot_wider(names_from = type, values_from = error) %>% 
+  mutate(improvement = (one - joint)) %>% 
+  group_by(scenario, param) %>% 
+  summarize(mean = mean(improvement), ub = quantile(improvement, 0.975),
+            lb = quantile(improvement, 0.025)) %>% 
+  left_join(specs_df, by = "scenario") %>% 
+  mutate(zeta = factor(zeta, levels = unique(specs_df$zeta))) %>% 
+  ggplot(aes(alpha0_1, mean, ymin = lb, ymax = ub, group = zeta, col = zeta)) +
+  geom_pointrange(position = position_dodge(width = 0.3)) +
+  geom_line(position = position_dodge(width = 0.3)) +
+  theme_bw() +
+  facet_grid(paste0("Parameter: ", param)~paste0("PA-1 coverage: ", xi),
+             scales = "free_y") +
+  geom_hline(yintercept = 0) +
+  xlab("Degree of noise in secondary dataset") +
+  scale_color_discrete("Magnitude of bias in\nprimary dataset") +
+  ylab("Improvement in precision of estimate")
+
+# Improvement in precision
+plot_1.4C <- bind_rows(estimation_results) %>% 
+  filter(param %in% c("beta0", "beta1")) %>% 
+  mutate(precision = Q975 - Q025) %>% 
+  select(type, scenario, iter, param, precision) %>% 
+  pivot_wider(names_from = type, values_from = precision) %>% 
+  mutate(improvement = (one - joint)/one) %>% 
+  group_by(scenario, param) %>% 
+  summarize(mean = mean(improvement), ub = quantile(improvement, 0.975),
+            lb = quantile(improvement, 0.025)) %>% 
+  left_join(specs_df, by = "scenario") %>% 
+  mutate(zeta = factor(zeta, levels = unique(specs_df$zeta))) %>% 
+  ggplot(aes(alpha0_1, mean, ymin = lb, ymax = ub, group = zeta, col = zeta)) +
+  geom_pointrange(position = position_dodge(width = 0.3)) +
+  geom_line(position = position_dodge(width = 0.3)) +
+  theme_bw() +
+  facet_grid(paste0("Parameter: ", param)~paste0("PA-1 coverage: ", xi),
+             scales = "free_y") +
+  geom_hline(yintercept = 0) +
+  xlab("Degree of noise in secondary dataset") +
+  scale_color_discrete("Magnitude of bias in\nprimary dataset") +
+  ylab("Improvement in precision of estimate")
+
+
+# Plot: Pct. of cases where joint outperforms single by all 3 metrics
+plot_1.4D <- bind_rows(
+  # Metric 1: OOS CV
+  bind_rows(cv_results) %>% 
+    pivot_wider(names_from = type, values_from = brier_score) %>% 
+    mutate(improvement = 100 * (one - joint) / one) %>% 
+    group_by(scenario) %>% 
+    summarize(mean = mean(improvement > 0)) %>% 
+    mutate(metric = "OOS CV"),
+  # Metric 2: MSE
+  bind_rows(estimation_results) %>% 
+    filter(param %in% c("beta0", "beta1")) %>% 
+    mutate(MSE = sd^2 + (mean - truth)^2) %>% 
+    select(type, scenario, iter, MSE, param) %>% 
+    pivot_wider(names_from = type, values_from = MSE) %>% 
+    mutate(improvement = one - joint) %>% 
+    group_by(scenario) %>% 
+    summarize(mean = mean(improvement > 0)) %>% 
+    mutate(metric = "MSE"), 
+  # Metric 3: error
+  bind_rows(estimation_results) %>% 
+    filter(param %in% c("beta0", "beta1")) %>% 
+    mutate(error = abs(mean - truth)) %>% 
+    select(type, scenario, iter, error, param) %>% 
+    pivot_wider(names_from = type, values_from = error) %>% 
+    mutate(improvement = one - joint) %>% 
+    group_by(scenario) %>% 
+    summarize(mean = mean(improvement > 0)) %>% 
+    mutate(metric = "Abs. error"),
+  # Metric 4: precision
+  bind_rows(estimation_results) %>% 
+    filter(param %in% c("beta0", "beta1")) %>% 
+    mutate(precision = Q975 - Q025) %>% 
+    select(type, scenario, iter, precision, param) %>% 
+    pivot_wider(names_from = type, values_from = precision) %>% 
+    mutate(improvement = one - joint) %>% 
+    group_by(scenario) %>% 
+    summarize(mean = mean(improvement > 0)) %>% 
+    mutate(metric = "Precision")
+) %>% 
+  mutate(metric = factor(metric, levels = c("Abs. error", "Precision",
+                                            "MSE", "OOS CV"))) %>% 
+  left_join(specs_df, by = "scenario") %>% 
+  mutate(zeta = factor(zeta, levels = unique(specs_df$zeta))) %>% 
+  ggplot(aes(alpha0_1, mean, group = zeta, col = zeta)) +
+  geom_point(position = position_dodge(width = 0.3)) +
+  geom_line(position = position_dodge(width = 0.3)) +
+  theme_bw() +
+  geom_hline(yintercept = 0.5) +
+  xlab("Mean det. prob. of primary dataset") +
+  scale_color_discrete("Magnitude of bias in\nprimary dataset") +
+  ylab("Percent of cases where joint\noutperforms single-dataset model") +
+  facet_grid(metric~paste0("PA-1 coverage: ", xi)) +
+  ggtitle("Rate at which joint model outperforms PA-1-only model")
+
+ggsave("plots/Fig1-4.jpg", plot_1.4D, width = 8, height = 8, dpi = 600)
+
 
 
 #### Visualizing 2.1 ####
