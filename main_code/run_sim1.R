@@ -4,7 +4,7 @@ library(parallel)
 library(gridExtra)
 source("support_fn/sim1_fn.R")
 
-nsim <- 200
+nsim <- 20
 ncores <- 32
 
 
@@ -15,7 +15,8 @@ cl <- makeCluster(ncores)
 specs_df <- as.data.frame(expand.grid(
     n1 = c(30, 60, 120, 250), n2 = c(250, 500, 1000)
   )) %>% 
-  mutate(scenario = row_number())
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
   source("support_fn/sim1_fn.R")
@@ -52,7 +53,8 @@ specs_df <- as.data.frame(expand.grid(
   alpha0_2 = c(-1, 0, 1),         # D2 information content: alpha0_2
   sigma = c(0.1, 1)
 )) %>% 
-  mutate(scenario = row_number())
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
   source("support_fn/sim1_fn.R")
@@ -88,7 +90,8 @@ specs_df <- as.data.frame(expand.grid(
   sigma = c(0.1, 0.5, 1, 2, 4), # noise in D2
   n1 = c(30, 60, 120), n2 = 120
 )) %>% 
-  mutate(scenario = row_number())
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
   source("support_fn/sim1_fn.R")
@@ -129,7 +132,8 @@ specs_df <- as.data.frame(expand.grid(
   n1 = 60, 
   n2 = 120
 )) %>% 
-  mutate(scenario = row_number())
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
   source("support_fn/sim1_fn.R")

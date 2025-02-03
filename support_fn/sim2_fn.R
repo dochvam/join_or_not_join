@@ -173,9 +173,9 @@ simulate_data_sim2 <- function(S,
 
 
 run_many_sim2 <- function(specs_df_onerow, nsim) {
-  set.seed(specs_df_onerow$scenario + 14908)
+  set.seed(specs_df_onerow$seed)
   
-  stopifnot(all(colnames(specs_df_onerow) %in% c(names(sim2_defaults), "scenario")))
+  stopifnot(all(colnames(specs_df_onerow) %in% c(names(sim2_defaults), "scenario", "seed")))
   
   sim2_values <- sim2_defaults
   for (i in 1:ncol(specs_df_onerow)) {

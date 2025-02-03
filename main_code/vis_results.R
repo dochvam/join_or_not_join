@@ -1,3 +1,5 @@
+library(tidyverse)
+library(gridExtra)
 
 #### Visualizing 1.1 ####
 

@@ -4,6 +4,8 @@ library(parallel)
 library(gridExtra)
 source("support_fn/sim2_fn.R")
 
+set.seed(524879)
+
 nsim <- 200
 ncores <- 16
 
@@ -11,9 +13,11 @@ ncores <- 16
 cl <- makeCluster(ncores)
 
 specs_df <- as.data.frame(expand.grid(
-  nPA = c(30, 60, 120, 250), S = c(60, 120, 600)
+  nPA = c(30, 60, 120, 250), 
+  S = c(60, 120, 600)
 )) %>% 
-  mutate(scenario = row_number())
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
   source("support_fn/sim2_fn.R")
@@ -61,7 +65,8 @@ specs_df <- as.data.frame(expand.grid(
     eta = c(10, 100, 1000), # D2 information content: eta
     alpha0 = 0, theta0 = -3
   ))) %>% 
-  mutate(scenario = row_number())
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
   source("support_fn/sim2_fn.R")
@@ -101,7 +106,8 @@ specs_df <- as.data.frame(expand.grid(
   sigma = c(0.1, 0.5, 1, 2, 4), # noise in D2
   nPA = c(60, 90, 120)
 )) %>% 
-  mutate(scenario = row_number())
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
   source("support_fn/sim2_fn.R")
@@ -144,23 +150,26 @@ specs_df <- as.data.frame(expand.grid(
   alpha0 = c(-1, -1/3, 1/3, 1),
   nPA = 60
 )) %>% 
-  mutate(scenario = row_number())
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
   source("support_fn/sim1_fn.R")
 })
 
+
+results_list <- parLapply(cl, 1:nrow(specs_df), 
+                          run_many_sim2_parallel_wrapper, 
+                          nsim = nsim, specs_df = specs_df)
+
 estimation_results <- list()
 cv_results <- list()
 runtime_results <- list()
-pb <- progress::progress_bar$new(total = nrow(specs_df))
 for (i in 1:nrow(specs_df)) {
-  this_result <- run_many_sim1(specs_df_onerow = specs_df[i, ], 
-                               nsim = nsim, cl)
+  this_result <- results_list[[i]]
   estimation_results[[i]] <- this_result$estimation_result
   cv_results[[i]]         <- this_result$cv_result
   runtime_results[[i]]    <- this_result$runtime_result
-  pb$tick()
 }
 
 saveRDS(list(estimation_results = estimation_results,

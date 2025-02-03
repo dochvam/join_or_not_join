@@ -92,9 +92,10 @@ run_one_sim1 <- function(iter,
                          alpha0_2 = -0.5, 
                          alpha1_2 = 0.5,
                          zeta = 0, 
-                         sigma = 0) {
-  set.seed(scenario + 1000 * iter + 14908)
-  
+                         sigma = 0,
+                         seed) {
+  set.seed(seed + (iter * 17))
+
   dat <- simulate_data_sim1(n1, n2, J, xi, beta0, beta1, alpha0_1, alpha1_1, 
                             alpha0_2, alpha1_2, zeta, sigma)
   dat_OOS <- simulate_data_sim1(n1, n2, J, xi = 1, beta0, beta1, alpha0_1, alpha1_1, 
@@ -156,6 +157,7 @@ run_one_sim1 <- function(iter,
 
 
 run_many_sim1 <- function(specs_df_onerow, nsim, cl = NULL) {
+  stopifnot(all(colnames(specs_df_onerow) %in% c(names(sim1_defaults), "scenario", "seed")))
   
   sim1_values <- sim1_defaults
   for (i in 1:ncol(specs_df_onerow)) {
@@ -167,6 +169,7 @@ run_many_sim1 <- function(specs_df_onerow, nsim, cl = NULL) {
   if (!is.null(cl)) {
     result_list <- parLapply(cl, X = 1:nsim, fun = run_one_sim1,
                              scenario = specs_df_onerow$scenario,
+                             seed = specs_df_onerow$seed,
               n1 = sim1_values["n1"], 
               n2 = sim1_values["n2"], 
               J = sim1_values["J"], 
