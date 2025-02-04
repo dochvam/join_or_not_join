@@ -4,7 +4,7 @@ library(parallel)
 library(gridExtra)
 source("support_fn/sim1_fn.R")
 
-nsim <- 20
+nsim <- 500
 ncores <- 32
 
 

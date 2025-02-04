@@ -140,7 +140,7 @@ rm(cl)
 
 
 
-#### Simulation 1.4: Effect of bias on usefulness of 2nd dataset ####
+#### Simulation 2.4: Effect of bias on usefulness of 2nd dataset ####
 
 cl <- makeCluster(ncores)
 
@@ -154,7 +154,7 @@ specs_df <- as.data.frame(expand.grid(
          seed = 1 + floor(runif(n()) * 100000))
 
 capture <- clusterEvalQ(cl, {
-  source("support_fn/sim1_fn.R")
+  source("support_fn/sim2_fn.R")
 })
 
 
