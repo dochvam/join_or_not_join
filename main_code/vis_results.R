@@ -378,7 +378,7 @@ plot_1.3D <- bind_rows(
   geom_line(position = position_dodge(width = 0.3)) +
   theme_bw() +
   geom_hline(yintercept = 0.5) +
-  xlab("Mean det. prob. of primary dataset") +
+  xlab("Degree of noise in secondary dataset") +
   scale_color_discrete("Num. sites in\nprimary dataset") +
   ylab("Percent of cases where joint\noutperforms single-dataset model") +
   facet_grid(metric~paste0("PA-1 coverage: ", xi)) +

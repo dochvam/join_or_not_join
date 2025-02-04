@@ -160,7 +160,7 @@ saveRDS(list(estimation_results = estimation_results,
 
 stopCluster(cl)
 
-
+rm(cl)
 
 
 
