@@ -5,7 +5,7 @@ library(gridExtra)
 source("support_fn/sim3_fn.R")
 
 nsim <- 40
-ncores <- 20
+ncores <- 10
 
 
 #### Simulation 1.1: decreasing marginal benefits of 2nd dataset ####

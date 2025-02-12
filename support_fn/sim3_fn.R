@@ -47,7 +47,7 @@ crs(x_r) <- sim_crs
 names(x_r) <- "x1"
 
 mesh <- fm_mesh_2d_inla(boundary = inla.sp2segment(bbox),
-                        max.edge = max(extent_x) / 25,
+                        max.edge = max(extent_x) / 10,
                         crs = crs(x_r))
 bbox_vect <- st_as_sfc(st_bbox(x_r))
 
