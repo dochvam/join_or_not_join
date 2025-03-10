@@ -163,7 +163,7 @@ simulate_data_sim2 <- function(S,
 # 
 #   runtime_result <- data.frame(
 #     type = c("one", "joint"),
-#     vaule = unname(c(fit_joint$run.time[3], fit_one$run.time[3]))
+#     value = unname(c(fit_joint$run.time[3], fit_one$run.time[3]))
 #   )
 # 
 #   return(list(estimation_result = estimation_result %>% mutate(iter = iter),
@@ -184,9 +184,8 @@ run_many_sim2 <- function(specs_df_onerow, nsim) {
     }
   }
   
-  ncv_sites <- 30
-  stopifnot(ncv_sites <= sim2_values["nPA"])
-  
+  ncv_sites <- 50
+
   # SETUP: simulate one dummy dataset to build a NIMBLE model
   dat_dummy <- simulate_data_sim2(S = sim2_values["S"],
                                   nPA = sim2_values["nPA"],
@@ -270,7 +269,7 @@ run_many_sim2 <- function(specs_df_onerow, nsim) {
                               zeta = sim2_values["zeta"],
                               sigma = sim2_values["sigma"])
     dat_OOS <- simulate_data_sim2(S = sim2_values["S"],
-                              nPA = sim2_values["nPA"],
+                              nPA = ncv_sites,
                               J = sim2_values["J"],
                               xi = 1,
                               eta = sim2_values["eta"],
@@ -325,7 +324,7 @@ run_many_sim2 <- function(specs_df_onerow, nsim) {
     
     runtime_list[[sim]] <- data.frame(
       type = c("joint", "one"),
-      vaule = unname(c(joint_time[3], single_time[3]))
+      value = unname(c(joint_time[3], single_time[3]))
     ) %>% 
       mutate(iter = sim, scenario = specs_df_onerow$scenario)
   }

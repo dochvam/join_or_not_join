@@ -571,7 +571,7 @@ b0_mse_plot_2.1 <- bind_rows(estimation_results) %>%
   geom_hline(yintercept = 0) +
   xlab("Num. sites in primary dataset") +
   scale_color_discrete("Num. sites in\nsecondary\ndataset") +
-  ylab("Improvement in MSE beta0 estimate\ndue to data integration") + 
+  ylab("Improvement in MSE\ndue to data integration") + 
   ggtitle("(A) Improvement in MSE")
 
 

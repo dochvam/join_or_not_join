@@ -81,13 +81,13 @@ simulate_data_sim3 <- function(beta0_1,
   
   ### Generate covariate data
   x <- outer(x_coords, y_coords, function(x, y) pmax(x/3000, y / 3000))
-  x_r <- rast(x)
-  ext(x_r) <- c(extent_x, extent_y)
-  crs(x_r) <- sim_crs
-  names(x_r) <- "x1"
+  x_r_blank <- rast(x)
+  ext(x_r_blank) <- c(extent_x, extent_y)
+  crs(x_r_blank) <- sim_crs
+  names(x_r_blank) <- "x1"
   
-  v_r <- simulate_grf(x_r, sill = 0.25)
-  x_r <- simulate_grf(x_r)
+  v_r <- simulate_grf(x_r_blank, sill = 0.25)
+  x_r <- simulate_grf(x_r_blank, sill = 1)
   
   names(v_r) <- "v"
   

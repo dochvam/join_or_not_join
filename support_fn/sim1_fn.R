@@ -4,7 +4,7 @@ library(tidyverse)
 sim1_params <- c("n1", "n2", "J", "xi", "beta0", "beta1", "alpha0_1", 
                  "alpha1_1", "alpha0_2", "alpha1_2", "zeta", "sigma")
 sim1_defaults <- c(n1 = 50,
-                   n2 = 120,
+                   n2 = 100,
                    J = 3,
                    xi = 1,
                    beta0 = 0.5,
@@ -96,9 +96,11 @@ run_one_sim1 <- function(iter,
                          seed) {
   set.seed(seed + (iter * 17))
 
+  ncv_sites <- 50
+  
   dat <- simulate_data_sim1(n1, n2, J, xi, beta0, beta1, alpha0_1, alpha1_1, 
                             alpha0_2, alpha1_2, zeta, sigma)
-  dat_OOS <- simulate_data_sim1(n1, n2, J, xi = 1, beta0, beta1, alpha0_1, alpha1_1, 
+  dat_OOS <- simulate_data_sim1(n1 = ncv_sites, n2, J, xi = 1, beta0, beta1, alpha0_1, alpha1_1, 
                                 alpha0_2, alpha1_2, zeta, sigma)
   
   dat_one <- list(
@@ -138,16 +140,12 @@ run_one_sim1 <- function(iter,
       mutate(type = "one")
   )
   
-  # TODO next: calculate CV using PA-1 for both joint and single-dataset model
-  ncv_sites <- 30
-  stopifnot(ncv_sites <= n1)
-  
   cv_result <- calculate_CV_sim1(ncv_sites, ests = estimation_result, 
                                     dat_OOS = dat_OOS)
   
   runtime_result <- data.frame(
     type = c("joint", "one"),
-    vaule = unname(c(fit_joint$run.time[3], fit_one$run.time[3]))
+    value = unname(c(fit_joint$run.time[3], fit_one$run.time[3]))
   )
   
   return(list(estimation_result = estimation_result %>% mutate(iter = iter),
@@ -216,6 +214,76 @@ run_many_sim1 <- function(specs_df_onerow, nsim, cl = NULL) {
     estimation_result = bind_rows(estimation_result_list),
     cv_result = bind_rows(cv_result_list),
     runtime_result = bind_rows(runtime_result_list)
+  ))
+}
+
+
+run_one_sim1_randomspecs <- function(iter, main_seed) {
+  set.seed(main_seed + (17 * iter))
+  
+  n1 <- sample(20:200, 1)
+  n2 <- sample(10 * 2:200, 1)
+  J <- sample(2:6, 1)
+  xi <- runif(1, 0.1, 1)
+  beta0 <- runif(1, -2, 2)
+  beta1 <- runif(1, -2, 2)
+  alpha0_1 <- runif(1, -2, 2)
+  alpha0_2 <- runif(1, -2, 2)
+  alpha1_1 <- runif(1, -2, 2)
+  alpha1_2 <- runif(1, -2, 2)
+  zeta <- runif(1, -2, 2)
+  sigma <- runif(1, 0, 5)
+  
+  result_list <- 
+    run_one_sim1(iter, scenario = NA, n1, n2, J, xi, beta0, beta1, alpha0_1, 
+                 alpha1_1, alpha0_2, alpha1_2, zeta, sigma, seed = main_seed)
+  
+  result_list$estimation_result <- result_list$estimation_result %>% 
+    mutate(MSE = sd^2 + (mean - truth)^2,
+           abs_error = mean - truth,
+           covered = Q975 > truth & Q025 < truth)
+
+  result_list$specs_df <- data.frame(
+    n1 = n1,
+    n2 = n2,
+    J = J,
+    xi = xi,
+    beta0 = beta0,
+    beta1 = beta1,
+    alpha0_1 = alpha0_1,
+    alpha0_2 = alpha0_2,
+    alpha1_1 = alpha1_1,
+    alpha1_2 = alpha1_2,
+    zeta = zeta,
+    sigma = sigma,
+    iter = iter,
+    main_seed = main_seed
+  )
+  result_list
+}
+
+run_many_sim_randomspecs <- function(nsim, cl = NULL) {
+  main_seed <- floor(runif(1, 0, 1) * 1000000)
+  
+  if (!is.null(cl)) {
+    result_list <- parLapply(cl, 1:nsim, fun = run_one_sim1_randomspecs, main_seed = main_seed)
+  } else {
+    result_list <- lapply(1:nsim, fun = run_one_sim1_randomspecs, main_seed = main_seed)
+  }
+  
+  estimation_result_list <- cv_result_list <- runtime_result_list <- specs_df_list <- list()
+  for (i in 1:nsim) {
+    estimation_result_list[[i]] <- result_list[[i]]$estimation_result
+    cv_result_list[[i]] <- result_list[[i]]$cv_result
+    runtime_result_list[[i]] <- result_list[[i]]$runtime_result
+    specs_df_list[[i]] <- result_list[[i]]$specs_df
+  }
+  
+  return(list(
+    estimation_result = bind_rows(estimation_result_list),
+    cv_result = bind_rows(cv_result_list),
+    runtime_result = bind_rows(runtime_result_list),
+    specs_df = bind_rows(specs_df_list)
   ))
 }
 

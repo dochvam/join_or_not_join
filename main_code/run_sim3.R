@@ -4,11 +4,11 @@ library(parallel)
 library(gridExtra)
 source("support_fn/sim3_fn.R")
 
-nsim <- 40
-ncores <- 10
+nsim <- 50
+ncores <- 5
 
 
-#### Simulation 1.1: decreasing marginal benefits of 2nd dataset ####
+#### Simulation 3.1: decreasing marginal benefits of 2nd dataset ####
 
 cl <- makeCluster(ncores)
 
@@ -40,7 +40,7 @@ saveRDS(list(estimation_results = estimation_results,
         "sim_output/sim3_1.RDS")
 
 stopCluster(cl)
-#### Simulation 1.3: Effect of noise on usefulness of 2nd dataset ####
+#### Simulation 3.3: Effect of noise on usefulness of 2nd dataset ####
 
 cl <- makeCluster(ncores)
 
@@ -75,7 +75,7 @@ stopCluster(cl)
 rm(cl)
 
 
-#### Simulation 1.4: Effect of bias on usefulness of 2nd dataset ####
+#### Simulation 3.4: Effect of bias on usefulness of 2nd dataset ####
 
 cl <- makeCluster(ncores)
 
