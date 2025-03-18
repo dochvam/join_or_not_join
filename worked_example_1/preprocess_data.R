@@ -91,3 +91,20 @@ grid_cell_df <- grid_cell_df %>%
 
 grid_cell_df$n_inat_CL[is.na(grid_cell_df$n_inat_CL)] <- 0
 grid_cell_df$n_inat_SF[is.na(grid_cell_df$n_inat_SF)] <- 0
+
+
+#### Make a map of the data ####
+
+(grid_cell_df %>% 
+  left_join(as.data.frame(main_grid, xy = TRUE), by = c("grid_cell" = "lyr.1")) %>% 
+  ggplot() +
+  geom_tile(aes(x, y, fill = n_inat)) +
+  geom_point(aes(x, y, col = n_ct > 0, alpha = n_ct > 0)) +
+  scale_color_manual("Cell contains CT", values = c(NA, "#dd3344")) +
+  scale_alpha_manual("Cell contains CT", values = c(0.05, 1)) +
+  scale_fill_viridis_c("Num. iNat obs.",
+                       trans = "log", na.value = "#dddddd", breaks = c(1, 8, 64, 400)) +
+  theme_minimal() +
+  xlab("Longitude") + ylab("Latitude") +
+  ggtitle("Map of sampling effort")) %>% 
+  ggsave(filename = "worked_example_1/effort_plot.jpg", width = 5, height = 4)

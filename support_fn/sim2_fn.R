@@ -228,8 +228,8 @@ run_many_sim2 <- function(specs_df_onerow, nsim) {
         y_PO[s] ~ dnbinom(size = 1/phi, prob = 1 / (1 + phi*mu[s]*E_PO[s]))
       }
       # Priors
-      theta0 ~ dnorm(0, sd = 2.72)
-      theta1 ~ dnorm(0, sd = 2.72)
+      theta0 ~ dnorm(0, sd = 10)
+      theta1 ~ dnorm(0, sd = 10)
       phi ~ dgamma(1, 1)
     }
   })

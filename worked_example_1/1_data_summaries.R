@@ -70,3 +70,69 @@ sum(grid_cell_df$n_inat_SF) / sum(grid_cell_df$n_inat)
 # Coverage of covariate space:
 diff(range(grid_cell_df$ndvi[grid_cell_df$n_inat > 0])) / diff(range(grid_cell_df$ndvi))
 
+
+#### Run a quick simulation using these values ####
+source('support_fn/sim2_fn.R')
+
+
+# Based on coyote
+specs_df <- data.frame(
+  S = sum(grid_cell_df$n_inat > 0),
+  nPA = nrow(dethist_CL), 
+  J = 3,
+  xi = 0.517,
+  eta = 10.8,
+  q = 1,
+  beta0 = logit(0.6),
+  beta1 = 1,
+  alpha0 = logit(0.46),
+  alpha1 = 0,
+  theta0 = log(0.006) - logit(0.6),
+  theta1 = 1
+)
+CL_sim <- run_many_sim2(specs_df_onerow = specs_df, nsim = 200)
+
+saveRDS(CL_sim, file = "worked_example_1/CL_sim.RDS")
+
+# Based on cottontail
+specs_df <- data.frame(
+  S = sum(grid_cell_df$n_inat > 0),
+  nPA = nrow(dethist_CL), 
+  J = 3,
+  xi = 0.517,
+  eta = 10.8,
+  q = 1,
+  beta0 = logit(0.6),
+  beta1 = 1,
+  alpha0 = logit(0.674),
+  alpha1 = 0,
+  theta0 = log(0.055) - logit(0.6),
+  theta1 = 1
+)
+SF_sim <- run_many_sim2(specs_df_onerow = specs_df, nsim = 200)
+
+saveRDS(SF_sim, file = "worked_example_1/SF_sim.RDS")
+
+
+bind_rows(
+  # Summarize CL
+  CL_sim$estimation_result %>% 
+    filter(param %in% c("beta0", "beta1")) %>% 
+    mutate(MSE = (mean - truth)^2 + sd^2) %>% 
+    select(MSE, param, iter, type) %>% 
+    pivot_wider(names_from = type, values_from = MSE) %>% 
+    mutate(improvement = one - joint, species = "Coyote"),
+  
+  # Summarize SF
+  SF_sim$estimation_result %>% 
+    filter(param %in% c("beta0", "beta1")) %>% 
+    mutate(MSE = (mean - truth)^2 + sd^2) %>% 
+    select(MSE, param, iter, type) %>% 
+    pivot_wider(names_from = type, values_from = MSE) %>% 
+    mutate(improvement = one - joint, species = "Cottontail")
+) %>% 
+  group_by(species, param) %>% 
+  summarize(median_improvement = median(improvement),
+            improvement_rate = mean(improvement > 0))
+
+# Make a result table
