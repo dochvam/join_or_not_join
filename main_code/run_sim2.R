@@ -215,3 +215,38 @@ stopCluster(cl)
 rm(cl)
 
 
+#### Simulation 1.6: Effect of baseline occupancy on usefulness of 2nd dataset ####
+
+cl <- makeCluster(ncores)
+
+specs_df <- as.data.frame(expand.grid(
+  beta0 = c(-1, -0.5, 0, 0.5, 1)
+)) %>% 
+  mutate(scenario = row_number(),
+         seed = 1 + floor(runif(n()) * 100000))
+
+capture <- clusterEvalQ(cl, {
+  source("support_fn/sim2_fn.R")
+})
+
+results_list <- parLapply(cl, 1:nrow(specs_df), 
+                          run_many_sim2_parallel_wrapper, 
+                          nsim = nsim, specs_df = specs_df)
+
+estimation_results <- list()
+cv_results <- list()
+runtime_results <- list()
+for (i in 1:nrow(specs_df)) {
+  this_result <- results_list[[i]]
+  estimation_results[[i]] <- this_result$estimation_result
+  cv_results[[i]]         <- this_result$cv_result
+  runtime_results[[i]]    <- this_result$runtime_result
+}
+
+saveRDS(list(estimation_results = estimation_results,
+             cv_results = cv_results, 
+             runtime_results = runtime_results,
+             specs_df =specs_df),
+        "sim_output/sim2_6.RDS")
+
+stopCluster(cl)

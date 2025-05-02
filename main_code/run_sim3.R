@@ -2,10 +2,19 @@ library(spOccupancy)
 library(tidyverse)
 library(parallel)
 library(gridExtra)
+library(PointedSDMs)
+library(sp)
+library(spatstat)
+library(INLA)
+library(inlabru)
+library(raster)
+library(terra)
+library(gstat)
+
 source("support_fn/sim3_fn.R")
 
 nsim <- 50
-ncores <- 5
+ncores <- 10
 
 
 #### Simulation 3.1: decreasing marginal benefits of 2nd dataset ####

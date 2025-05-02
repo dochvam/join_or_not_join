@@ -1,5 +1,6 @@
 library(nimbleEcology)
 library(tidyverse)
+library(MCMCvis)
 
 source("worked_example_1/preprocess_data.R")
 
@@ -20,7 +21,7 @@ for (species in c("coyote", "cottontail")) {
     for (i in 1:nPA) {
       cloglog(psi[i]) <- beta0 + beta1 * x_PA[i]
       for (j in 1:J[i]) {
-        cloglog(p[i, j]) <- alpha0 + alpha1 * w[i]
+        cloglog(p[i, j]) <- alpha0 + alpha1 * w[i] + alpha2 * x_PA[i]
       }
       y_PA[i, 1:J[i]] ~ dOcc_v(probOcc = psi[i], probDetect = p[i, 1:J[i]], len = J[i])
     }
@@ -29,6 +30,7 @@ for (species in c("coyote", "cottontail")) {
     beta1 ~  dnorm(0, sd = 2.72)
     alpha0 ~ dnorm(0, sd = 2.72)
     alpha1 ~ dnorm(0, sd = 2.72)
+    alpha2 ~ dnorm(0, sd = 2.72)
     
     # PO data
     if (type == "joint") {
@@ -62,8 +64,8 @@ for (species in c("coyote", "cottontail")) {
     data = list(y_PA = dethist,
                 y_PO = this_grid_cell_df[[inat_col]]),
     inits = list(
-      beta0 = 0, beta1 = 0, alpha0 = 0, alpha1 = 0, theta0 = 0, theta1 = 0,
-      phi = 0.1
+      beta0 = 0, beta1 = 0, alpha0 = 0, alpha1 = 0, alpha2 = 0,
+      theta0 = 0, theta1 = 0, phi = 0.1
     )
   )
   joint_mcmc <- buildMCMC(joint_mod)
@@ -112,10 +114,10 @@ for (species in c("coyote", "cottontail")) {
 }
 
 bind_rows(estimation_result) %>% 
-  write_csv("worked_example_1/joint_model_results.csv")
+  write_csv("worked_example_1/joint_model_results_wNDVIdet.csv")
 
 
-results <- read_csv("worked_example_1/joint_model_results.csv") 
+results <- read_csv("worked_example_1/joint_model_results_wNDVIdet.csv") 
 
 results %>% 
   filter(param %in% c("beta0", "beta1")) %>% 
@@ -130,6 +132,17 @@ results %>%
 
 results %>% 
   filter(param %in% c("theta0", "theta1")) %>% 
+  ggplot() + 
+  geom_hline(yintercept = 0) +
+  geom_pointrange(aes(param, mean, ymin = `2.5%`, ymax = `97.5%`, col = type),
+                  position = position_dodge(width = 0.1)) +
+  theme_bw() + 
+  theme(axis.ticks = element_blank()) +
+  facet_wrap(~species, nrow = 2) + coord_flip() + xlab("") +
+  ylab("Estimate (95%CI)")
+
+results %>% 
+  filter(param %in% c("alpha0", "alpha1", "alpha2")) %>% 
   ggplot() + 
   geom_hline(yintercept = 0) +
   geom_pointrange(aes(param, mean, ymin = `2.5%`, ymax = `97.5%`, col = type),

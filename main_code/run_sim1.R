@@ -132,19 +132,22 @@ capture <- clusterEvalQ(cl, {
 estimation_results <- list()
 cv_results <- list()
 runtime_results <- list()
+ppc_results <- list()
 pb <- progress::progress_bar$new(total = nrow(specs_df))
 for (i in 1:nrow(specs_df)) {
   this_result <- run_many_sim1(specs_df_onerow = specs_df[i, ], 
-                               nsim = nsim, cl)
+                               nsim = nsim, cl, ppc = TRUE)
   estimation_results[[i]] <- this_result$estimation_result
   cv_results[[i]]         <- this_result$cv_result
   runtime_results[[i]]    <- this_result$runtime_result
+  ppc_results[[i]]        <- this_result$ppc_result
   pb$tick()
 }
 
 saveRDS(list(estimation_results = estimation_results,
              cv_results = cv_results, 
              runtime_results = runtime_results,
+             ppc_results = ppc_results,
              specs_df =specs_df),
         "sim_output/sim1_4.RDS")
 
@@ -171,20 +174,23 @@ capture <- clusterEvalQ(cl, {
 estimation_results <- list()
 cv_results <- list()
 runtime_results <- list()
+ppc_results <- list()
 pb <- progress::progress_bar$new(total = nrow(specs_df))
 for (i in 1:nrow(specs_df)) {
   this_result <- run_many_sim1(specs_df_onerow = specs_df[i, ], 
-                               nsim = nsim, cl)
+                               nsim = nsim, cl, ppc = TRUE)
   estimation_results[[i]] <- this_result$estimation_result
   cv_results[[i]]         <- this_result$cv_result
   runtime_results[[i]]    <- this_result$runtime_result
+  ppc_results[[i]]        <- this_result$ppc_result
   pb$tick()
 }
 
 saveRDS(list(estimation_results = estimation_results,
              cv_results = cv_results, 
              runtime_results = runtime_results,
-             specs_df =specs_df),
+             ppc_results = ppc_results,
+             specs_df = specs_df),
         "sim_output/sim1_5.RDS")
 
 stopCluster(cl)

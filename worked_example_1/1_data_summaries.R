@@ -90,7 +90,7 @@ specs_df <- data.frame(
   theta0 = log(0.006) - logit(0.6),
   theta1 = 1
 )
-CL_sim <- run_many_sim2(specs_df_onerow = specs_df, nsim = 200)
+CL_sim <- run_many_sim2(specs_df_onerow = specs_df, nsim = 100)
 
 saveRDS(CL_sim, file = "worked_example_1/CL_sim.RDS")
 
@@ -109,7 +109,7 @@ specs_df <- data.frame(
   theta0 = log(0.055) - logit(0.6),
   theta1 = 1
 )
-SF_sim <- run_many_sim2(specs_df_onerow = specs_df, nsim = 200)
+SF_sim <- run_many_sim2(specs_df_onerow = specs_df, nsim = 100)
 
 saveRDS(SF_sim, file = "worked_example_1/SF_sim.RDS")
 

@@ -229,7 +229,8 @@ run_many_sim2 <- function(specs_df_onerow, nsim) {
       }
       # Priors
       theta0 ~ dnorm(0, sd = 10)
-      theta1 ~ dnorm(0, sd = 10)
+      # theta1 ~ dnorm(0, sd = 10)
+      theta1 <- 1
       phi ~ dgamma(1, 1)
     }
   })
