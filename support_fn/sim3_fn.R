@@ -10,8 +10,8 @@ library(terra)
 library(gstat)
 
 sim3_params <- c("beta0_1", "beta0_2", "beta1", "zeta", "sigma")
-sim3_defaults <- c(beta0_1 = -12,
-                   beta0_2 = -12,
+sim3_defaults <- c(beta0_1 = log(250 / (2 * 5000 * 5000)),
+                   beta0_2 = log(250 / (2 * 5000 * 5000)),
                    beta1 = 1,
                    zeta = 0,
                    sigma = 0)
@@ -86,7 +86,7 @@ simulate_data_sim3 <- function(beta0_1,
   crs(x_r_blank) <- sim_crs
   names(x_r_blank) <- "x1"
   
-  v_r <- simulate_grf(x_r_blank, sill = 0.25)
+  v_r <- simulate_grf(x_r_blank, sill = 0.5)
   x_r <- simulate_grf(x_r_blank, sill = 1)
   
   names(v_r) <- "v"
@@ -119,7 +119,7 @@ simulate_data_sim3 <- function(beta0_1,
   epsilon_r <- x_r
   values(epsilon_r) <- rnorm(ncell(epsilon_r), values(x_r) * zeta, sigma)
   
-  intensity2 <- exp(beta0_1 + (beta1) * (x_r) + (v_r) + epsilon_r)
+  intensity2 <- exp(beta0_2 + (beta1) * (x_r) + (v_r) + epsilon_r)
   ext(intensity2) <- c(extent_x, extent_y)
   crs(intensity2) <- sim_crs
   names(intensity2) <- "intensity2"
@@ -154,81 +154,103 @@ run_one_sim3 <- function(iter,
                          zeta,
                          sigma,
                          seed) {
-  set.seed(seed + (iter * 17))
   
-  capture <- capture.output(
-    sim_output <- simulate_data_sim3(beta0_1, beta0_2, beta1, zeta, sigma)
-  )
+  result <- tryCatch({
+    set.seed(seed + (iter * 17))
+    
+    capture <- capture.output(
+      sim_output <- simulate_data_sim3(beta0_1, beta0_2, beta1, zeta, sigma)
+    )
+    
+    #### Joint model
+    joint_runtime <- system.time({
+      
+      model <- startISDM(sim_output$input_data, 
+                         Boundary = bbox_vect,
+                         Projection = crs(sim_output$covar_brick), 
+                         Mesh = mesh,
+                         spatialCovariates = sim_output$covar_brick,
+                         Formulas = list(covariateFormula = ~x1))
+      
+      model$specifySpatial(sharedSpatial = TRUE,
+                           constr = TRUE,
+                           prior.sigma = c(0.1, 0.05),
+                           prior.range = c(200, 0.1))
+      
   
-  #### Joint model
-  joint_runtime <- system.time({
+      estimate <- fitISDM(data = model, 
+                          options = sim3_modelOptions)
+      
+      capture <- capture.output(summary_mtx <- summary(estimate)$fixed)
+      
+      estimation_result_joint <- summary_mtx %>% 
+        as.data.frame() %>% 
+        dplyr::select(mean, sd, Q025 = `0.025quant`, Q975 = `0.975quant`) %>% 
+        mutate(iter = iter, scenario = scenario, type = "joint",
+               param = c("beta0_1", "beta0_2", "beta1"),
+               truth = c(beta0_1, beta0_2, beta1))
+    })
     
-    model <- startISDM(sim_output$input_data, 
-                       Boundary = bbox_vect,
-                       Projection = crs(sim_output$covar_brick), 
-                       Mesh = mesh,
-                       spatialCovariates = sim_output$covar_brick,
-                       Formulas = list(covariateFormula = ~x1))
     
-    model$specifySpatial(sharedSpatial = TRUE,
-                         constr = TRUE,
-                         prior.sigma = c(0.1, 0.05),
-                         prior.range = c(200, 0.1))
+    ### Single-dataset model
+    single_runtime <- system.time({
+      
+      model <- startISDM(list(d1 = sim_output$input_data$d1), 
+                         Boundary = bbox_vect,
+                         Projection = crs(sim_output$covar_brick), 
+                         Mesh = mesh,
+                         spatialCovariates = sim_output$covar_brick,
+                         Formulas = list(covariateFormula = ~x1))
+      
+      model$specifySpatial(sharedSpatial = TRUE,
+                           constr = TRUE,
+                           prior.sigma = c(0.1, 0.05),
+                           prior.range = c(200, 0.1))
+      
+      estimate <- fitISDM(data = model,
+                          options = sim3_modelOptions)
+      
+      capture <- capture.output(summary_mtx <- summary(estimate)$fixed)
+      
+      estimation_result_single <- summary_mtx %>% 
+        as.data.frame() %>% 
+        dplyr::select(mean, sd, Q025 = `0.025quant`, Q975 = `0.975quant`) %>% 
+        mutate(iter = iter, scenario = scenario, type = "one",
+               param = c("beta0_1", "beta1"),
+               truth = c(beta0_1, beta1))
+    })
     
-
-    estimate <- fitISDM(data = model, 
-                        options = sim3_modelOptions)
+    estimation_result <- bind_rows(estimation_result_single, estimation_result_joint)
+    rownames(estimation_result) <- NULL
     
-    capture <- capture.output(summary_mtx <- summary(estimate)$fixed)
+    runtime_result <- data.frame(
+      type = c("joint", "one"),
+      num_points = c(dim(sim_output$input_data$d1)[1] + dim(sim_output$input_data$d2)[1], 
+                     dim(sim_output$input_data$d1)[1]),
+      vaule = unname(c(joint_runtime[3], single_runtime[3]))
+    )
     
-    estimation_result_joint <- summary_mtx %>% 
-      as.data.frame() %>% 
-      dplyr::select(mean, sd, Q025 = `0.025quant`, Q975 = `0.975quant`) %>% 
-      mutate(iter = iter, scenario = scenario, type = "joint",
-             param = c("beta0_1", "beta0_2", "beta1"),
-             truth = c(beta0_1, beta0_2, beta1))
+    list(estimation_result = estimation_result %>% mutate(iter = iter),
+                runtime_result = runtime_result %>% mutate(iter = iter))
+    
+  }, error = function(e) {
+    estimation_result <- data.frame(
+      mean = NA, sd = NA, Q025 = NA, Q975 = NA, iter = iter, scenario = scenario,
+      type = rep(c("joint", "one"), each = 2), 
+      param = rep(c("beta0_1", "beta1"), 2), 
+      truth = rep(c(beta0_1, beta1), 2)
+    )
+    runtime_result <- data.frame(
+      type = c("joint", "one"),
+      num_points = NA,
+      value = NA
+    )
+    
+    return(list(estimation_result = estimation_result %>% mutate(iter = iter),
+                runtime_result = runtime_result %>% mutate(iter = iter)))
   })
   
-  
-  ### Single-dataset model
-  single_runtime <- system.time({
-    
-    model <- startISDM(list(d1 = sim_output$input_data$d1), 
-                       Boundary = bbox_vect,
-                       Projection = crs(sim_output$covar_brick), 
-                       Mesh = mesh,
-                       spatialCovariates = sim_output$covar_brick,
-                       Formulas = list(covariateFormula = ~x1))
-    
-    model$specifySpatial(sharedSpatial = TRUE,
-                         constr = TRUE,
-                         prior.sigma = c(0.1, 0.05),
-                         prior.range = c(200, 0.1))
-    
-    estimate <- fitISDM(data = model, 
-                        options = sim3_modelOptions)
-    
-    capture <- capture.output(summary_mtx <- summary(estimate)$fixed)
-    
-    estimation_result_single <- summary_mtx %>% 
-      as.data.frame() %>% 
-      dplyr::select(mean, sd, Q025 = `0.025quant`, Q975 = `0.975quant`) %>% 
-      mutate(iter = iter, scenario = scenario, type = "one",
-             param = c("beta0_1", "beta1"),
-             truth = c(beta0_1, beta1))
-  })
-  
-  estimation_result <- bind_rows(estimation_result_single, estimation_result_joint)
-  rownames(estimation_result) <- NULL
-  
-  runtime_result <- data.frame(
-    type = c("joint", "one"),
-    vaule = unname(c(joint_runtime[3], single_runtime[3]))
-  )
-  
-
-  return(list(estimation_result = estimation_result %>% mutate(iter = iter),
-              runtime_result = runtime_result %>% mutate(iter = iter)))
+  return(result)
 }
 
 

@@ -13,7 +13,7 @@ library(gstat)
 
 source("support_fn/sim3_fn.R")
 
-nsim <- 50
+nsim <- 100
 ncores <- 10
 
 
@@ -22,8 +22,8 @@ ncores <- 10
 cl <- makeCluster(ncores)
 
 specs_df <- as.data.frame(expand.grid(
-    beta0_1 = log(c(50, 100, 250, 500) / (5000 * 5000)),
-    beta0_2 = log(c(50, 100, 250, 500) / (5000 * 5000))
+    beta0_1 = log(c(50, 100, 250, 500) / (2 * 5000 * 5000)),
+    beta0_2 = log(c(50, 100, 250, 500) / (2 * 5000 * 5000))
   )) %>% 
   mutate(scenario = row_number(),
          seed = 1 + floor(runif(n()) * 100000))
