@@ -49,6 +49,8 @@ saveRDS(list(estimation_results = estimation_results,
         "sim_output/sim3_1.RDS")
 
 stopCluster(cl)
+rm(cl)
+
 #### Simulation 3.3: Effect of noise on usefulness of 2nd dataset ####
 
 cl <- makeCluster(ncores)
