@@ -9,9 +9,9 @@ library(raster)
 library(terra)
 library(gstat)
 
-sim3_params <- c("beta0_1", "beta0_2", "beta1", "zeta", "sigma")
-sim3_defaults <- c(beta0_1 = log(250 / (2 * 5000 * 5000)),
-                   beta0_2 = log(250 / (2 * 5000 * 5000)),
+sim3_params <- c("n1", "n2", "beta1", "zeta", "sigma")
+sim3_defaults <- c(n1 = 100,
+                   n2 = 100,
                    beta1 = 1,
                    zeta = 0,
                    sigma = 0)
@@ -73,8 +73,8 @@ simulate_grf <- function(input_raster, range = 500, sill = 1) {
   return(output_raster)
 }
 
-simulate_data_sim3 <- function(beta0_1,
-                               beta0_2,
+simulate_data_sim3 <- function(n1,
+                               n2,
                                beta1,
                                zeta,
                                sigma) {
@@ -96,7 +96,7 @@ simulate_data_sim3 <- function(beta0_1,
   
   #### Simulate for dataset 1
   # Calculate intensity
-  intensity1 <- exp(beta0_1 + beta1 * x_r + v_r)
+  intensity1 <- exp(-9 + beta1 * x_r + v_r)
   ext(intensity1) <- c(extent_x, extent_y)
   crs(intensity1) <- sim_crs
   names(intensity1) <- "intensity1"
@@ -111,7 +111,7 @@ simulate_data_sim3 <- function(beta0_1,
   pp1 <- rpoispp(lambda)
   
   # Convert points to a SpatialPointsDF
-  y_PO1 <- st_as_sf(data.frame(x = pp1$x, y = pp1$y),
+  y_PO1 <- st_as_sf(data.frame(x = pp1$x, y = pp1$y) %>% sample_n(n1),
                     coords = c("x", "y"), crs = crs(x_r))
   
   #### Dataset 2
@@ -119,7 +119,7 @@ simulate_data_sim3 <- function(beta0_1,
   epsilon_r <- x_r
   values(epsilon_r) <- rnorm(ncell(epsilon_r), values(x_r) * zeta, sigma)
   
-  intensity2 <- exp(beta0_2 + (beta1) * (x_r) + (v_r) + epsilon_r)
+  intensity2 <- exp(-9 + (beta1) * (x_r) + (v_r) + epsilon_r)
   ext(intensity2) <- c(extent_x, extent_y)
   crs(intensity2) <- sim_crs
   names(intensity2) <- "intensity2"
@@ -134,7 +134,7 @@ simulate_data_sim3 <- function(beta0_1,
   pp2 <- rpoispp(lambda)
   
   # Convert points to a SpatialPointsDF
-  y_PO2 <- st_as_sf(data.frame(x = pp2$x, y = pp2$y),
+  y_PO2 <- st_as_sf(data.frame(x = pp2$x, y = pp2$y) %>% sample_n(n2),
                     coords = c("x", "y"), crs = crs(x_r))
   
   input_data <- list(d1 = y_PO1, d2 = y_PO2)
@@ -148,8 +148,8 @@ simulate_data_sim3 <- function(beta0_1,
 
 run_one_sim3 <- function(iter, 
                          scenario = 0,
-                         beta0_1,
-                         beta0_2,
+                         n1,
+                         n2,
                          beta1,
                          zeta,
                          sigma,
@@ -159,7 +159,7 @@ run_one_sim3 <- function(iter,
     set.seed(seed + (iter * 17))
     
     capture <- capture.output(
-      sim_output <- simulate_data_sim3(beta0_1, beta0_2, beta1, zeta, sigma)
+      sim_output <- simulate_data_sim3(n1, n2, beta1, zeta, sigma)
     )
     
     #### Joint model
@@ -187,8 +187,8 @@ run_one_sim3 <- function(iter,
         as.data.frame() %>% 
         dplyr::select(mean, sd, Q025 = `0.025quant`, Q975 = `0.975quant`) %>% 
         mutate(iter = iter, scenario = scenario, type = "joint",
-               param = c("beta0_1", "beta0_2", "beta1"),
-               truth = c(beta0_1, beta0_2, beta1))
+               param = c("n1", "n2", "beta1"),
+               truth = c(n1, n2, beta1))
     })
     
     
@@ -216,8 +216,8 @@ run_one_sim3 <- function(iter,
         as.data.frame() %>% 
         dplyr::select(mean, sd, Q025 = `0.025quant`, Q975 = `0.975quant`) %>% 
         mutate(iter = iter, scenario = scenario, type = "one",
-               param = c("beta0_1", "beta1"),
-               truth = c(beta0_1, beta1))
+               param = c("n1", "beta1"),
+               truth = c(n1, beta1))
     })
     
     estimation_result <- bind_rows(estimation_result_single, estimation_result_joint)
@@ -237,8 +237,8 @@ run_one_sim3 <- function(iter,
     estimation_result <- data.frame(
       mean = NA, sd = NA, Q025 = NA, Q975 = NA, iter = iter, scenario = scenario,
       type = rep(c("joint", "one"), each = 2), 
-      param = rep(c("beta0_1", "beta1"), 2), 
-      truth = rep(c(beta0_1, beta1), 2)
+      param = rep(c("n1", "beta1"), 2), 
+      truth = rep(c(n1, beta1), 2)
     )
     runtime_result <- data.frame(
       type = c("joint", "one"),
@@ -269,8 +269,8 @@ run_many_sim3 <- function(specs_df_onerow, nsim, cl = NULL) {
     result_list <- parLapply(cl, X = 1:nsim, fun = run_one_sim3,
                              scenario = specs_df_onerow$scenario,
                              seed = specs_df_onerow$seed,
-                             beta0_1 = sim3_values["beta0_1"],
-                             beta0_2 = sim3_values["beta0_2"],
+                             n1 = sim3_values["n1"],
+                             n2 = sim3_values["n2"],
                              beta1 = sim3_values["beta1"], 
                              zeta = sim3_values["zeta"], 
                              sigma = sim3_values["sigma"])
@@ -281,8 +281,8 @@ run_many_sim3 <- function(specs_df_onerow, nsim, cl = NULL) {
       result_list[[i]] <- run_one_sim3(iter = i,
                                        scenario = specs_df_onerow$scenario,
                                        seed = specs_df_onerow$seed,
-                                       beta0_1 = sim3_values["beta0_1"],
-                                       beta0_2 = sim3_values["beta0_2"],
+                                       n1 = sim3_values["n1"],
+                                       n2 = sim3_values["n2"],
                                        beta1 = sim3_values["beta1"], 
                                        zeta = sim3_values["zeta"], 
                                        sigma = sim3_values["sigma"])

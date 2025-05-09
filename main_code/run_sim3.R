@@ -13,7 +13,7 @@ library(gstat)
 
 source("support_fn/sim3_fn.R")
 
-nsim <- 100
+nsim <- 500
 ncores <- 10
 
 
@@ -22,8 +22,8 @@ ncores <- 10
 cl <- makeCluster(ncores)
 
 specs_df <- as.data.frame(expand.grid(
-    beta0_1 = log(c(50, 100, 250, 500) / (2 * 5000 * 5000)),
-    beta0_2 = log(c(50, 100, 250, 500) / (2 * 5000 * 5000))
+    n1 = c(25, 50, 100, 150, 200),
+    n2 = c(50, 200, 800)
   )) %>% 
   mutate(scenario = row_number(),
          seed = 1 + floor(runif(n()) * 100000))
@@ -56,7 +56,8 @@ rm(cl)
 cl <- makeCluster(ncores)
 
 specs_df <- as.data.frame(expand.grid(
-  sigma = c(0.1, 0.5, 1, 2, 4) # noise in D2
+  sigma = c(0.1, 0.5, 1, 2, 4), # noise in D2
+  n1 = c(25, 50, 100)
 )) %>% 
   mutate(scenario = row_number(),
          seed = 1 + floor(runif(n()) * 100000))
@@ -91,7 +92,8 @@ rm(cl)
 cl <- makeCluster(ncores)
 
 specs_df <- as.data.frame(expand.grid(
-  zeta = c(0.1, 0.5, 1)        # bias in D2
+  zeta = c(0.1, 0.5, 1), # bias in D2
+  n1 = c(25, 50, 100)
 )) %>% 
   mutate(scenario = row_number(),
          seed = 1 + floor(runif(n()) * 100000))
