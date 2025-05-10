@@ -30,8 +30,9 @@ summary1.1 <- estimation_results %>%
   left_join(specs_df, by = "scenario")
 
 runtime1.1 <- bind_rows(runtime_results) %>% 
-  select(type, scenario, iter, value) %>% 
-  pivot_wider(names_from = type, values_from = value) %>% 
+  mutate(time_to_1000 = 1000 / min_ESS_persec) %>% 
+  select(type, scenario, iter, time_to_1000) %>% 
+  pivot_wider(names_from = type, values_from = time_to_1000) %>% 
   mutate(improvement = joint - one) %>% 
   group_by(scenario) %>% 
   summarize(mean = mean(improvement), ub = quantile(improvement, 0.75),
@@ -151,7 +152,7 @@ panelB <- ggplot(runtime1.1,
   theme_minimal() +
   scale_color_viridis_d("Num. sites in\nsecondary\ndataset", begin = 0, end = 0.7) +
   xlab("Num. sites in primary dataset") +
-  ylab("Increase in runtime (s)") +
+  ylab("Increase in time to\n1000 effective samples (s)") +
   ggtitle("(B) Computational cost")
 
 #### Sim Fig C - information content ####

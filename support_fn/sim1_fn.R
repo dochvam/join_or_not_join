@@ -16,6 +16,11 @@ sim1_defaults <- c(n1 = 50,
                    zeta = 0,
                    sigma = 0)
 
+split_mtx <- function(mtx, n) {
+  split(seq_len(nrow(mtx)), rep(1:n, each = nrow(mtx)/n)) |>
+    lapply(function(i) mtx[i, , drop = FALSE])
+}
+
 simulate_data_sim1 <- function(n1, 
                                n2, 
                                J, 
@@ -193,11 +198,13 @@ run_one_sim1 <- function(iter,
                                     dat_OOS = dat_OOS, d = 1)  
   cv_result_d2 <- calculate_CV_sim1(ncv_sites, ests = estimation_result, 
                                     dat_OOS = dat_OOS, d = 2)
-  
+
   runtime_result <- data.frame(
     type = c("joint", "one"),
-    value = unname(c(fit_joint$run.time[3], fit_one$run.time[3]))
-  )
+    value = unname(c(fit_joint$run.time[3], fit_one$run.time[3])),
+    min_ESS = c(min(unlist(fit_joint$ESS)), min(unlist(fit_one$ESS)))
+  ) %>% 
+    mutate(min_ESS_persec = min_ESS / value)
   
   return(list(estimation_result = estimation_result %>% mutate(iter = iter),
               cv_result = bind_rows(cv_result_d1, cv_result_d2) %>% mutate(iter = iter), 
@@ -238,6 +245,8 @@ run_many_sim1 <- function(specs_df_onerow, nsim, cl = NULL, ppc = FALSE) {
     result_list <- list()
     for (i in 1:nsim) {
       result_list[[i]] <- run_one_sim1(iter = i,
+                                       scenario = specs_df_onerow$scenario,
+                                       seed = specs_df_onerow$seed,
                                        n1 = sim1_values["n1"], 
                                        n2 = sim1_values["n2"], 
                                        J = sim1_values["J"], 
