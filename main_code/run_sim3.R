@@ -23,7 +23,7 @@ cl <- makeCluster(ncores)
 
 specs_df <- as.data.frame(expand.grid(
     n1 = c(25, 50, 100, 150, 200),
-    n2 = c(50, 200, 800)
+    n2 = c(50, 100, 200)
   )) %>% 
   mutate(scenario = row_number(),
          seed = 1 + floor(runif(n()) * 100000))
@@ -92,7 +92,7 @@ rm(cl)
 cl <- makeCluster(ncores)
 
 specs_df <- as.data.frame(expand.grid(
-  zeta = c(0.1, 0.5, 1), # bias in D2
+  zeta = -1 * 0:8 / 4, # bias in D2
   n1 = c(25, 50, 100)
 )) %>% 
   mutate(scenario = row_number(),

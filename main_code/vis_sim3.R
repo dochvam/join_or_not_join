@@ -20,7 +20,7 @@ specs_df <- this_res$specs_df
 
 summary3.1 <- estimation_results %>% 
   bind_rows() %>% 
-  filter(param %in% c("beta0", "beta1")) %>% 
+  filter(param == "beta1") %>% 
   mutate(MSE = sd^2 + (mean - truth)^2) %>% 
   select(type, scenario, iter, param, MSE) %>% 
   pivot_wider(names_from = type, values_from = MSE) %>% 
@@ -66,8 +66,7 @@ summary3.3 <- estimation_results %>%
   pivot_wider(names_from = type, values_from = MSE) %>% 
   mutate(improvement = one - joint) %>% 
   group_by(scenario, param) %>% 
-  summarize(median = median(improvement, na.rm = T), ub = quantile(improvement, 0.75, na.rm = T),
-            lb = quantile(improvement, 0.25, na.rm = T)) %>%
+  summarize(rate = mean(improvement > 0, na.rm  = TRUE)) %>%
   left_join(specs_df, by = "scenario")
 
 
@@ -92,8 +91,8 @@ summary3.4 <- estimation_results %>%
 #### Vis
 
 panelA <- ggplot(summary3.1,
-                 aes(beta0_1, median, ymax = ub, ymin = lb, col = as.factor(beta0_2),
-                     group = as.factor(beta0_2))) +
+                 aes(n1, median, ymax = ub, ymin = lb, col = as.factor(n2),
+                     group = as.factor(n2))) +
   geom_pointrange(position = position_dodge(width = 0.2)) +
   geom_line(position = position_dodge(width = 0.2)) +
   theme_minimal() +
@@ -104,8 +103,8 @@ panelA <- ggplot(summary3.1,
 
 
 panelB <- ggplot(runtime3.1,
-                 aes(beta0_1, median, ymax = ub, ymin = lb, col = as.factor(beta0_2),
-                     group = as.factor(beta0_2))) +
+                 aes(n1, median, ymax = ub, ymin = lb, col = as.factor(n2),
+                     group = as.factor(n2))) +
   geom_pointrange(position = position_dodge(width = 0.2)) +
   geom_line(position = position_dodge(width = 0.2)) +
   theme_minimal() +
@@ -118,8 +117,8 @@ panelB <- ggplot(runtime3.1,
 
 
 panelE <- ggplot(summary3.3,
-                 aes(sigma, rate, col = as.factor(nPA),
-                     group = as.factor(nPA))) +
+                 aes(sigma, rate, col = as.factor(n1),
+                     group = as.factor(n1))) +
   geom_point(position = position_dodge(width = 0)) +
   geom_line(position = position_dodge(width = 0)) +
   geom_hline(yintercept = 0.5) +
@@ -129,3 +128,24 @@ panelE <- ggplot(summary3.3,
   xlab("Logit-scale random noise in secondary dataset") +
   ylab("Rate at which joint model outperforms\nsingle-dataset model, by MSE") +
   ggtitle("(E) Noise in secondary data")
+
+panelF <- ggplot(summary3.4,
+                 aes(zeta, rate, col = as.factor(n1),
+                     group = as.factor(n1))) +
+  geom_point(position = position_dodge(width = 0)) +
+  geom_hline(yintercept = 0.5) +
+  geom_line(position = position_dodge(width = 0)) +
+  theme_minimal() +
+  scale_color_viridis_d("Num. sites\nin primary\ndataset", begin = 0, end = 0.7,
+                        option = "plasma") +
+  xlab("Logit-scale bias in the effect of x on secondary dataset") +
+  ylab("Rate at which joint model outperforms\nsingle-dataset model, by MSE") +
+  ggtitle("(F) Bias in secondary data")
+
+
+
+
+sim_results_fig <- arrangeGrob(panelA, panelB, panelE, panelF,
+                               nrow = 2)
+ggsave("sim3_results_suppl.jpg", sim_results_fig, width = 9, height = 7, dpi = 300)
+
