@@ -2,3 +2,5 @@ data
 joint_model_results.csv
 CL_sim.RDS
 SF_sim.RDS
+joint_model_results_theta1fixed.csv
+joint_model_results_wNDVIdet.csv
