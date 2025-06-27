@@ -35,5 +35,23 @@ helper script `preprocess_data.R` which loads inputs from four data files,
 sequences, SNAPSHOT deployment metadata, and NDVI raster used in the analysis.
 
 
+## Required packages
 
+To run this code, you need to have the following packages installed:
+
+* `tidyverse`
+* `nimbleEcology`
+* `spOccupancy`
+* `unmarked`
+* `terra`
+* `tidyterra`
+* `MCMCvis`
+* `PointedSDMs`
+* `spatstat`
+* `sp`
+* `INLA`
+* `inlabru`
+* `raster`
+* `gstat`
+* `parallel`
 
