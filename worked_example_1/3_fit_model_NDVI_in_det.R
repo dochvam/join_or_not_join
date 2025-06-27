@@ -42,7 +42,7 @@ for (species in c("coyote", "cottontail")) {
       }
       # Priors
       theta0 ~ dnorm(0, sd = 10)
-      theta1 ~ dnorm(0, sd = 2.72)
+      theta1 <- 1
       phi ~ dgamma(1, 1)
     }
   })
@@ -151,3 +151,5 @@ results %>%
   theme(axis.ticks = element_blank()) +
   facet_wrap(~species, nrow = 2) + coord_flip() + xlab("") +
   ylab("Estimate (95%CI)")
+
+
