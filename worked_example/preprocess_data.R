@@ -4,12 +4,12 @@ library(unmarked)
 
 #### Load all observation data ####
 
-inat_dat  <- read_csv("worked_example_1/data/WE1_iNat.csv")
-this_seq  <- read_csv("worked_example_1/data/WE1_sequences.csv")
-this_depl <- read_csv("worked_example_1/data/WE1_deployments.csv")
+inat_dat  <- read_csv("worked_example/data/WE1_iNat.csv")
+this_seq  <- read_csv("worked_example/data/WE1_sequences.csv")
+this_depl <- read_csv("worked_example/data/WE1_deployments.csv")
 
 ## Load the spatial layer of interest
-ndvi_nyc_raw <- rast("worked_example_1/data/Avg_NDVI_Landsat_NYC.tif")
+ndvi_nyc_raw <- rast("worked_example/data/Avg_NDVI_Landsat_NYC.tif")
 
 
 #### Spatialize and grid all data to  0.05 decimal degrees ####

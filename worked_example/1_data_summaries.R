@@ -8,7 +8,7 @@
 
 #### Step 0: Load the data ####
 
-source("worked_example_1/preprocess_data.R")
+source("worked_example/preprocess_data.R")
 
 #### Step 1: Summarize the Snapshot USA PA dataset ####
 
@@ -92,7 +92,7 @@ specs_df <- data.frame(
 )
 CL_sim <- run_many_sim2(specs_df_onerow = specs_df, nsim = 100)
 
-saveRDS(CL_sim, file = "worked_example_1/CL_sim.RDS")
+saveRDS(CL_sim, file = "worked_example/CL_sim.RDS")
 
 # Based on cottontail
 specs_df <- data.frame(
@@ -111,7 +111,7 @@ specs_df <- data.frame(
 )
 SF_sim <- run_many_sim2(specs_df_onerow = specs_df, nsim = 100)
 
-saveRDS(SF_sim, file = "worked_example_1/SF_sim.RDS")
+saveRDS(SF_sim, file = "worked_example/SF_sim.RDS")
 
 
 bind_rows(

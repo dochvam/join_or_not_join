@@ -1,7 +1,7 @@
 library(nimbleEcology)
 library(MCMCvis)
 
-source("worked_example_1/preprocess_data.R")
+source("worked_example/preprocess_data.R")
 
 estimation_result <- list()
 
@@ -112,10 +112,10 @@ for (species in c("coyote", "cottontail")) {
 }
 
 bind_rows(estimation_result) %>% 
-  write_csv("worked_example_1/joint_model_results_theta1fixed.csv")
+  write_csv("worked_example/joint_model_results_theta1fixed.csv")
 
 
-results <- read_csv("worked_example_1/joint_model_results_theta1fixed.csv") 
+results <- read_csv("worked_example/joint_model_results_theta1fixed.csv") 
 
 results %>% 
   filter(param %in% c("beta0", "beta1")) %>% 

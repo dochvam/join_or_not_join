@@ -1,10 +1,10 @@
 library(tidyverse)
 library(gridExtra)
 
-source('worked_example_1/preprocess_data.R')
+source('worked_example/preprocess_data.R')
 
-results <- read_csv("worked_example_1/joint_model_results_theta1fixed.csv") 
-results2 <- read_csv("worked_example_1/joint_model_results_wNDVIdet.csv") 
+results <- read_csv("worked_example/joint_model_results_theta1fixed.csv") 
+results2 <- read_csv("worked_example/joint_model_results_wNDVIdet.csv") 
 
 covar_names <- data.frame(
   param = c("beta0", "beta1", "alpha0", "alpha1", "alpha2"),
